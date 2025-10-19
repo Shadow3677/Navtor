@@ -26,7 +26,7 @@ std::vector<FileMetadata> FileManager::scanFiles(const fs::path& root)
 	if (root.empty())
 	{
 		LOG(Debug, "root is empty");
-        goto exit;
+        return entries;
 	}
 
     try
@@ -56,7 +56,6 @@ std::vector<FileMetadata> FileManager::scanFiles(const fs::path& root)
         std::cerr << "Error: " << error.what() << "\n";
     }
 
-exit:
 	LOG(Info, "Exit.");
     return entries;
 }
@@ -72,18 +71,24 @@ void FileManager::Pack(const fs::path& root, const fs::path& archivePath)
     LOG(Info, "Entry.");
 
     auto files = scanFiles(root);
-    std::unordered_map<std::string, fs::path> uniqueFiles;
-    
-    for (FileMetadata& file : files)
+
+    if (files.empty())
     {
-        uniqueFiles[file.sha256] = fs::absolute(root / file.path);
+        LOG(Info, "No file to compress.");
+        return;
     }
 
     std::ofstream ofStream(archivePath, std::ios::binary);
     if (!ofStream)
     {
         LOG(Error, "Cannot create archive.");
-        goto Exit;
+        return;
+    }
+
+    std::unordered_map<std::string, fs::path> uniqueFiles;
+    for (FileMetadata& file : files)
+    {
+        uniqueFiles[file.sha256] = fs::absolute(root / file.path);
     }
 
     ofStream.write(MAGIC, 4);
@@ -92,15 +97,10 @@ void FileManager::Pack(const fs::path& root, const fs::path& archivePath)
     write_u32(ofStream, static_cast<uint32_t>(files.size()));
 
     //bloobs: SHA, orginal size, compressed size, data
-
     for (auto& [sha, path] : uniqueFiles)
     {
         char shaBin[32];
-        for (int i = 0; i < 32; i += 2)
-        {
-            shaBin[i/2] = static_cast<char>(std::stoi(sha.substr(i,2), nullptr, 16));
-        }
-
+        hexToBinSHA(shaBin, sha);
         ofStream.write(shaBin, 32);
 
         uint64_t originalSize = fs::file_size(path);
@@ -120,10 +120,7 @@ void FileManager::Pack(const fs::path& root, const fs::path& archivePath)
         ofStream.write(file.path.data(), pathLength);
 
         char shaBin[32];
-        for (int i = 0; i < 32; i += 2)
-        {
-            shaBin[i / 2] = static_cast<char>(std::stoi(file.sha256.substr(i,2), nullptr, 16));
-        }
+        hexToBinSHA(shaBin, file.sha256);
         ofStream.write(shaBin, 32);
 
         write_u64(ofStream, file.size);
@@ -131,7 +128,6 @@ void FileManager::Pack(const fs::path& root, const fs::path& archivePath)
         write_u64(ofStream, file.time);
     }
 
-Exit:
     ofStream.close();
     LOG(Info, "Exit.");
 }
@@ -267,6 +263,12 @@ std::string FileManager::sha256File(const fs::path& path)
     return ss.str();
 }
 
+/**
+* Name: FileManager::Unpack
+* Description: Unpackl files from the archive into an directory
+* @Param archivePath - absolute path to the archive
+* @Param destRoot - absolute path to the root directory
+*/
 void FileManager::Unpack(const fs::path& archivePath, const fs::path& destRoot)
 {
     LOG(Info, "Entry.");
@@ -380,6 +382,12 @@ void FileManager::Unpack(const fs::path& archivePath, const fs::path& destRoot)
     LOG(Info, "Exit.");
 }
 
+/**
+* Name: FileManager::compressFileToStream
+* Description: Compress file, chunk by chunk, to stream using zlib
+* @Param path - absolute path to file
+* @Param ostream - output stream
+*/
 void FileManager::decompresStreamToFile(std::istream& iStream, uint64_t compresedSize, const fs::path& outPath)
 {
     std::vector<char> in(CHUNK), out(CHUNK);
@@ -440,6 +448,12 @@ void FileManager::decompresStreamToFile(std::istream& iStream, uint64_t comprese
     inflateEnd(&zStream);
 }
 
+/**
+* Name: FileManager::binToHexSHA
+* Description: Reads and convers bin to hex SHA
+* @Param ifstream - file stream with binary SHA
+* @param shaHex - string stream with hex SHA
+*/
 void FileManager::binToHexSHA(std::ifstream& ifstream, std::ostringstream& shaHex)
 {
     LOG(Info, "Entry.");
@@ -459,5 +473,21 @@ void FileManager::binToHexSHA(std::ifstream& ifstream, std::ostringstream& shaHe
 
     LOG(Info, "Hex SHA: %s", shaHex.str().c_str());
 
+    LOG(Info, "Exit.");
+}
+
+/**
+* Name: FileManager::hexToBinSHA
+* Description: Convers hex to bin SHA
+* @Param shaBin - output shaBin
+* @Param shaHex - string containing hex SHA
+*/
+void FileManager::hexToBinSHA(char* shaBin, const std::string& shaHex)
+{
+    LOG(Info, "Entry.");
+    for (int i = 0; i < 32; i += 2)
+    {
+        shaBin[i / 2] = static_cast<char>(std::stoi(shaHex.substr(i, 2), nullptr, 16));
+    }
     LOG(Info, "Exit.");
 }

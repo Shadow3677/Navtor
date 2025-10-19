@@ -6,11 +6,12 @@
 #include <chrono>
 #include <unordered_map>
 
-namespace {
+namespace
+{
     constexpr int CHUNK = 1 << 20; // 1MB chunk
     constexpr char MAGIC[4] = { 'T','M','A','R' };
     constexpr uint32_t VERSION = 2;
-}
+} // anonymous namespace
 
 /**
 * Name: FileManager::scanFiles
@@ -383,8 +384,8 @@ void FileManager::Unpack(const fs::path& archivePath, const fs::path& destRoot)
 }
 
 /**
-* Name: FileManager::compressFileToStream
-* Description: Compress file, chunk by chunk, to stream using zlib
+* Name: FileManager::decompresStreamToFile
+* Description: decompres file stream to file
 * @Param path - absolute path to file
 * @Param ostream - output stream
 */
@@ -413,7 +414,7 @@ void FileManager::decompresStreamToFile(std::istream& iStream, uint64_t comprese
     {
         int toRead = static_cast<int>(std::min<uint64_t>(CHUNK, remaining));
         iStream.read(in.data(), toRead);
-        int got = iStream.gcount();
+        int got = static_cast<int>(iStream.gcount());
 
         if (0 >= got)
         {

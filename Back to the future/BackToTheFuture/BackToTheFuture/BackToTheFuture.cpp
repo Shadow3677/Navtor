@@ -23,7 +23,9 @@ int main(int argc, char** argv)
         printHelp();
         return 0;
     }
-    FileManager fileManager;
+
+    Compressor compressor;
+    FileManager fileManager(compressor);
     std::string mode(argv[1]);
     if (PACK_MODE == mode)
     {

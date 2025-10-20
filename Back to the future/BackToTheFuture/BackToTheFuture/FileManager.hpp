@@ -6,6 +6,7 @@
 #include <filesystem>
 
 #include "Logger.hpp"
+#include "Compressor.hpp"
 
 namespace fs = std::filesystem;
 
@@ -20,7 +21,7 @@ struct FileMetadata
 
 class IFileManager
 {
-public:
+public: 
 	virtual void Pack(const fs::path& root, const fs::path& archivePath) = 0;
 	virtual void Unpack(const fs::path& archivepath, const fs::path& destRoot) = 0;
 };
@@ -28,7 +29,7 @@ public:
 class FileManager : IFileManager
 {
 public:
-	
+	explicit FileManager(Compressor& compresor);
 	void Pack(const fs::path& root, const fs::path& archivePath) override;
 	void Unpack(const fs::path& archivepath, const fs::path& destRoot) override;
 
@@ -39,10 +40,11 @@ private:
 	inline uint64_t read_u64(std::istream& is) { uint64_t v = 0; for (int i = 0; i < 8; i++) { int c = is.get(); if (c == EOF) LOG(Error, "Unexpected EOF"); v |= (uint64_t)c << (8 * i); } return v; }
 	
 	std::vector<FileMetadata> scanFiles(const fs::path& root);
-	uint64_t compressFileToStream(const fs::path& path, std::ostream& ostream);
-	void decompresStreamToFile(std::istream& istream, uint64_t compresedSize, const fs::path& outPath);
 	std::string sha256File(const fs::path& path);
 
 	void binToHexSHA(std::ifstream& ifstream, std::ostringstream& shaHex);
 	void hexToBinSHA(char* shaBin, const std::string& shaHex);
+
+private:
+	Compressor& m_compressor;
 };

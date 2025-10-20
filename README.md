@@ -61,8 +61,8 @@ O = 20
 | Red       | 15               |
 | **Total** | 43               |
 
+## Conclusion
 
-##Conclusion
 20 Dwarfs were wearing orange hats at the party.
 
 ## Back to the future

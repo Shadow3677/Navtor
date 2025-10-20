@@ -154,9 +154,11 @@ copy /Y "%OPENSSL_DIR%\libcrypto-3-x64.dll" "$(OutDir)"</Command>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="BackToTheFuture.cpp" />
+    <ClCompile Include="Compressor.cpp" />
     <ClCompile Include="FileManager.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Compressor.hpp" />
     <ClInclude Include="FileManager.hpp" />
     <ClInclude Include="Logger.hpp" />
   </ItemGroup>

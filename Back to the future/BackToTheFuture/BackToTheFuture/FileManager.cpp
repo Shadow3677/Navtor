@@ -8,11 +8,17 @@
 
 namespace
 {
-    constexpr int CHUNK = 1 << 20; // 1MB chunk
     constexpr char MAGIC[4] = { 'T','M','A','R' };
     constexpr uint32_t VERSION = 2;
 } // anonymous namespace
 
+
+/**
+* Name: Compressor::Compressor
+* Description: Constructor
+* @Param compresor - compresor
+*/
+FileManager::FileManager(Compressor& compresor) : m_compressor(compresor) {}
 /**
 * Name: FileManager::scanFiles
 * Description: gather files recursively, compute SHA-256 and metadata
@@ -108,7 +114,7 @@ void FileManager::Pack(const fs::path& root, const fs::path& archivePath)
         write_u64(ofStream, originalSize);
 
         std::stringstream compressedData;
-        uint64_t compressedSize = compressFileToStream(path, compressedData);
+        uint64_t compressedSize = m_compressor.compressFileToStream(path, compressedData);
         write_u64(ofStream, compressedSize);
 
         ofStream << compressedData.rdbuf();
@@ -134,74 +140,12 @@ void FileManager::Pack(const fs::path& root, const fs::path& archivePath)
 }
 
 /**
-* Name: FileManager::compressFileToStream
-* Description: Compress file, chunk by chunk, to stream using zlib
-* @Param path - absolute path to file
-* @Param ostream - output stream
-*/
-uint64_t FileManager::compressFileToStream(const fs::path& path, std::ostream& ostream)
-{
-    LOG(Info, "Entry.");
-
-    std::ifstream inFile(path, std::ios::binary);
-    int flush;
-    std::vector<char> in(CHUNK), out(CHUNK);
-    z_stream zStream{};
-    uint64_t totalOut = 0;
-
-    if (!inFile)
-    {
-        LOG(Error, "Cannot open file %s.", path.string().c_str());
-        goto Error;
-    }
-    
-    if (Z_OK != deflateInit(&zStream, Z_BEST_COMPRESSION))
-    {
-        LOG(Error, "deflateInit failed.");
-        goto Error;
-    }
-
-    do {
-        inFile.read(in.data(), CHUNK);
-        std::streamsize readBytes = inFile.gcount();
-        flush = inFile.eof() ? Z_FINISH : Z_NO_FLUSH;
-        zStream.next_in = reinterpret_cast<Bytef*>(in.data());
-        zStream.avail_in = static_cast<uInt>(readBytes);
-
-       do {
-            zStream.next_out = reinterpret_cast<Bytef*>(out.data());
-            zStream.avail_out = CHUNK;
-
-            if (Z_STREAM_ERROR == deflate(&zStream, flush))
-            {
-                LOG(Error, "Deflat error.");
-                goto Error;
-            }
-
-            uInt have = CHUNK - zStream.avail_out;
-            ostream.write(out.data(), have);
-            totalOut += have;
-       } while (zStream.avail_out == 0);
-    } while (flush != Z_FINISH);
-
-    deflateEnd(&zStream);
-
-    LOG(Info, "Exit.");
-    return totalOut;
-
-Error:
-    deflateEnd(&zStream);
-    return 0;
-}
-
-/**
 * Name: FileManager::sha256File
 * Description: Calculate SHA256 for the given file
 * @Param path - absolute path to file
 */
 std::string FileManager::sha256File(const fs::path& path)
 {
-    LOG(Info, "Entry.");
     std::ifstream file(path, std::ios::binary);
     if (!file)
     {
@@ -260,7 +204,6 @@ std::string FileManager::sha256File(const fs::path& path)
         ss << std::setw(2) << static_cast<int>(hash[i]);
     }
 
-    LOG(Info, "Exit.");
     return ss.str();
 }
 
@@ -364,8 +307,7 @@ void FileManager::Unpack(const fs::path& archivePath, const fs::path& destRoot)
         fs::path outPath = destRoot / relpath;
         fs::create_directories(outPath.parent_path());
 
-        decompresStreamToFile(ifstream, blob.compSize, outPath);
-
+        m_compressor.decompresStreamToFile(ifstream, blob.compSize, outPath);
         // back to metadata
         ifstream.clear();
         ifstream.seekg(metadata_pos);
@@ -384,72 +326,6 @@ void FileManager::Unpack(const fs::path& archivePath, const fs::path& destRoot)
 }
 
 /**
-* Name: FileManager::decompresStreamToFile
-* Description: decompres file stream to file
-* @Param path - absolute path to file
-* @Param ostream - output stream
-*/
-void FileManager::decompresStreamToFile(std::istream& iStream, uint64_t compresedSize, const fs::path& outPath)
-{
-    std::vector<char> in(CHUNK), out(CHUNK);
-    z_stream zStream{};
-    
-    if (inflateInit(&zStream) != Z_OK)
-    {
-        LOG(Error, "InflateInit failed.");
-        return;
-    }
-
-    std::ofstream ofStream(outPath, std::ios::binary);
-
-    if (!ofStream)
-    {
-        LOG(Error, "Cannot create output file %s.", outPath.string().c_str());
-        return;
-    }
-
-    uint64_t remaining = compresedSize;
-
-    while (0 < remaining)
-    {
-        int toRead = static_cast<int>(std::min<uint64_t>(CHUNK, remaining));
-        iStream.read(in.data(), toRead);
-        int got = static_cast<int>(iStream.gcount());
-
-        if (0 >= got)
-        {
-            LOG(Error, "Unexpected EOF.");
-            return;
-        }
-
-        remaining -= got;
-        zStream.next_in = reinterpret_cast<Bytef*>(in.data());
-        zStream.avail_in = got;
-
-        do
-        {
-            zStream.next_out = reinterpret_cast<Bytef*>(out.data());
-            zStream.avail_out = CHUNK;
-
-            int ret = inflate(&zStream, Z_NO_FLUSH);
-
-            if (0 > ret)
-            {
-                LOG(Error, "inflate error.");
-            }
-
-            uInt have = CHUNK - zStream.avail_out;
-            if (0 < have)
-            {
-                ofStream.write(out.data(), have);
-            }
-        } while (0 == zStream.avail_out);
-    }
-
-    inflateEnd(&zStream);
-}
-
-/**
 * Name: FileManager::binToHexSHA
 * Description: Reads and convers bin to hex SHA
 * @Param ifstream - file stream with binary SHA
@@ -457,8 +333,6 @@ void FileManager::decompresStreamToFile(std::istream& iStream, uint64_t comprese
 */
 void FileManager::binToHexSHA(std::ifstream& ifstream, std::ostringstream& shaHex)
 {
-    LOG(Info, "Entry.");
-
     unsigned char shaBin[32];
     if (!ifstream.read(reinterpret_cast<char*>(shaBin), 32))
     {
@@ -471,10 +345,6 @@ void FileManager::binToHexSHA(std::ifstream& ifstream, std::ostringstream& shaHe
     {
         shaHex << std::setw(2) << static_cast<int>(shaBin[j]);
     }
-
-    LOG(Info, "Hex SHA: %s", shaHex.str().c_str());
-
-    LOG(Info, "Exit.");
 }
 
 /**
@@ -485,10 +355,8 @@ void FileManager::binToHexSHA(std::ifstream& ifstream, std::ostringstream& shaHe
 */
 void FileManager::hexToBinSHA(char* shaBin, const std::string& shaHex)
 {
-    LOG(Info, "Entry.");
     for (int i = 0; i < 32; i += 2)
     {
         shaBin[i / 2] = static_cast<char>(std::stoi(shaHex.substr(i, 2), nullptr, 16));
     }
-    LOG(Info, "Exit.");
 }

@@ -1,5 +1,6 @@
 ﻿#include <iostream>
 #include <thread>
+
 #include "FileManager.hpp"
 
 namespace fs = std::filesystem;
@@ -24,8 +25,9 @@ int main(int argc, char** argv)
         return 0;
     }
 
+    FileScanner scanner;
     Compressor compressor;
-    FileManager fileManager(compressor);
+    FileManager fileManager(compressor, scanner);
     std::string mode(argv[1]);
     if (PACK_MODE == mode)
     {

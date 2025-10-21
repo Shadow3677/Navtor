@@ -156,10 +156,12 @@ copy /Y "%OPENSSL_DIR%\libcrypto-3-x64.dll" "$(OutDir)"</Command>
     <ClCompile Include="BackToTheFuture.cpp" />
     <ClCompile Include="Compressor.cpp" />
     <ClCompile Include="FileManager.cpp" />
+    <ClCompile Include="FileScanner.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Compressor.hpp" />
     <ClInclude Include="FileManager.hpp" />
+    <ClInclude Include="FileScanner.hpp" />
     <ClInclude Include="Logger.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

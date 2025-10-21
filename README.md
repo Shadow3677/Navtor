@@ -6,7 +6,7 @@ This repository was created for the recruitment process purposes
 
 # Snow White and the Dwarfs Party
 
-This document calculates the number of dwarfs wearing orange hats at Snow White's party.
+This document calculates the number of dwarfs wearing orange hats at party.
 
 ## Variables
 

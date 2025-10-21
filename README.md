@@ -1,5 +1,9 @@
 # Navtor pre-interview tasks
 
+This repository was created for the recruitment process purposes
+
+---
+
 # Snow White and the Dwarfs Party
 
 This document calculates the number of dwarfs wearing orange hats at Snow White's party.
@@ -134,7 +138,7 @@ If you prefer to build it yourself:
 
 ## 🧑‍💻 Author
 
-Łukasz Wiśniewski — C++ developer passionate about low-level systems.
+Shadow(Łukasz Wiśniewski) — C++ developer passionate about low-level systems.
 Developed under Dark Paw Software 🐾
 
 <p align="center"> <img src="https://i.imgur.com/P2pdHhL.png" alt="Dark Paw Software" width="220"/> </p>

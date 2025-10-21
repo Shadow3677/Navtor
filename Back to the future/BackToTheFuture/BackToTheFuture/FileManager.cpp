@@ -179,7 +179,7 @@ void FileManager::Unpack(const fs::path& archivePath, const fs::path& destRoot)
         const Blob& blob = it->second;
 
         // save metadata pos
-        std::streampos metadata_pos = ifstream.tellg();
+        std::streampos metadataPos = ifstream.tellg();
 
         // go to blobs
         ifstream.clear();
@@ -196,7 +196,7 @@ void FileManager::Unpack(const fs::path& archivePath, const fs::path& destRoot)
         m_compressor.decompresStreamToFile(ifstream, blob.compSize, outPath);
         // back to metadata
         ifstream.clear();
-        ifstream.seekg(metadata_pos);
+        ifstream.seekg(metadataPos);
 
         if (readonly)
         {

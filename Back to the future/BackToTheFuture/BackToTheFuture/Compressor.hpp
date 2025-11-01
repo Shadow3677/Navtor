@@ -18,16 +18,4 @@ private:
 	const std::size_t m_CHUNK;
 	std::vector<char> inBuffer;
 	std::vector<char> outBuffer;
-
-	struct ScopedZStream
-	{
-		enum class Mode { Deflate = 0, Inflate };
-
-		ScopedZStream(z_stream& stream, int level, Mode mode);
-		ScopedZStream(z_stream& stream, Mode mode);
-		~ScopedZStream();
-
-		z_stream m_zs;
-		Mode m_mode;
-	};
 };

@@ -1,6 +1,8 @@
 #include "Compressor.hpp"
 #include "Logger.hpp"
 
+#include <memory>
+
 /**
 * Name: Compressor::Compressor
 * Description: Constructor
@@ -8,44 +10,6 @@
 */
 Compressor::Compressor(std::size_t chunkSize) :
 	m_CHUNK(chunkSize), inBuffer(chunkSize), outBuffer(chunkSize) {}
-
-/**
-* Name: Compressor::Compressor::ScopedZStream::ScopedZStream
-* Description: Constructor
-* @Param stream - zStream from zlib
-* @Param level - compresion level
-* @param mode - compression or decompression mode
-*/
-Compressor::ScopedZStream::ScopedZStream(z_stream& stream, int level, Mode mode) :
-	m_zs(stream), m_mode(mode) {}
-
-/**
-* Name: Compressor::Compressor::ScopedZStream::ScopedZStream
-* Description: Constructor
-* @Param stream - zStream from zlib
-* @param mode - compression or decompression mode
-*/
-Compressor::ScopedZStream::ScopedZStream(z_stream& stream, Mode mode) :
-	m_zs(stream), m_mode(mode) {}
-
-/**
-* Name: Compressor::ScopedZStream::~ScopedZStream
-* Description: Deconstructor
-* @Param chunkSize - chunk size
-*/
-Compressor::ScopedZStream::~ScopedZStream()
-{
-	LOG(Info, "Entry, mode: %d.", m_mode);
-	if (Mode::Deflate == m_mode)
-	{
-		deflateEnd(&m_zs);
-	}
-	else
-	{
-		inflateEnd(&m_zs);
-	}
-	LOG(Info, "Exit.");
-}
 
 /**
 * Name: Compressor::compressFileToStream
@@ -65,13 +29,18 @@ uint64_t Compressor::compressFileToStream(const fs::path& path, std::ostream& os
 	}
 
 	z_stream zStream{};
-	Compressor::ScopedZStream deflateGuard(zStream, Z_BEST_COMPRESSION, Compressor::ScopedZStream::Mode::Deflate);
+
 	if (Z_OK != deflateInit(&zStream, Z_BEST_COMPRESSION))
 	{
 		LOG(Error, "deflateInit failed.");
 		return 0;
 	}
-	
+
+	auto deflateaGuard = std::unique_ptr<z_stream, decltype(&deflateEnd)>(
+		&zStream,
+		&deflateEnd
+	);
+
 	uint64_t totalOut = 0;
 	int flush = Z_NO_FLUSH;
 
@@ -121,12 +90,16 @@ void Compressor::decompresStreamToFile(std::istream& istream, uint64_t compresse
 	LOG(Info, "Entry.");
 
 	z_stream zStream{};
-	ScopedZStream inflateGuard(zStream, Compressor::ScopedZStream::Mode::Inflate);
 	if (Z_OK != inflateInit(&zStream))
 	{
 		LOG(Error, "InflateInit failed.");
 		return;
 	}
+
+	auto inflateGuard = std::unique_ptr<z_stream, decltype(&inflateEnd)>(
+		&zStream,
+		&inflateEnd
+	);
 
 	std::ofstream outFile(outPath, std::ios::binary);
 	if (!outFile)

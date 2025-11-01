@@ -2,6 +2,7 @@
 #include "Logger.hpp"
 
 #include <openssl/evp.h>
+#include <memory>
 
 /**
 * Name: FileScanner::scanFiles
@@ -65,14 +66,18 @@ std::string FileScanner::sha256File(const fs::path& path)
 		return std::string();
 	}
 
-	EVP_MD_CTX* mdCtx = EVP_MD_CTX_new();
-	if (!mdCtx)
+	auto mdCtx = std::unique_ptr<EVP_MD_CTX, decltype(&EVP_MD_CTX_free)>(
+		EVP_MD_CTX_new(),
+		&EVP_MD_CTX_free
+	);
+
+	if (!mdCtx.get())
 	{
 		LOG(Error, "Failed to create EVP context");
 		return std::string();
 	}
 
-	if (1 != EVP_DigestInit_ex(mdCtx, EVP_sha256(), nullptr))
+	if (1 != EVP_DigestInit_ex(mdCtx.get(), EVP_sha256(), nullptr))
 	{
 		LOG(Error, "Failed to init EVP.");
 		return std::string();
@@ -89,7 +94,7 @@ std::string FileScanner::sha256File(const fs::path& path)
 
 		if (0 < streamSize)
 		{
-			if (1 != EVP_DigestUpdate(mdCtx, buffer.data(), streamSize))
+			if (1 != EVP_DigestUpdate(mdCtx.get(), buffer.data(), streamSize))
 			{
 				LOG(Error, "Update failed.");
 			}
@@ -99,13 +104,11 @@ std::string FileScanner::sha256File(const fs::path& path)
 	std::vector<unsigned char> hash(EVP_MAX_MD_SIZE);
 	unsigned int hashLen = 0;
 
-	if (1 != EVP_DigestFinal_ex(mdCtx, hash.data(), &hashLen))
+	if (1 != EVP_DigestFinal_ex(mdCtx.get(), hash.data(), &hashLen))
 	{
 		LOG(Error, "Update failed.");
 		return std::string();
 	}
-
-	EVP_MD_CTX_free(mdCtx);
 
 	std::ostringstream ss;
 	ss << std::hex << std::setfill('0');
